@@ -8,18 +8,84 @@ output:
 
 ## Loading and preprocessing the data
 
+```{r echo=TRUE }
+df.raw <- read.csv("activity.csv")
+df.raw$date <- as.Date(df.raw$date)
+```
 
 
 ## What is mean total number of steps taken per day?
+```{r echo=TRUE}
+library(dplyr)
+df.perday <- df.raw %>% group_by(date) %>% summarize(steps = sum(steps, na.rm=TRUE))
+
+library(ggplot2)
+p <- ggplot(df.perday, aes(df.perday$date, df.perday$steps))
+p + geom_bar(stat="identity")
+ggsave("figure/plot1.png")
+
+df.mean <- df.raw %>% group_by(date) %>% summarize(steps.mean = mean(steps, na.rm=TRUE), steps.median=median(steps, na.rm=TRUE))
+df.mean
+```
 
 
 
 ## What is the average daily activity pattern?
+```{r echo=TRUE }
+df.interval <- df.raw %>% group_by(interval) %>% summarize(steps = mean(steps, na.rm=TRUE))
+
+p <- ggplot(df.interval, aes(interval, steps))
+p + geom_line()
+ggsave("figure/plot2.png")
+
+max.step <- max(df.interval$steps)
+max.interval <- df.interval$interval[df.interval$step==max.step]
+print(paste("5-minute interval with max steps is the",max.interval, "th",sep=" "))
+```
 
 
 
 ## Imputing missing values
+```{r echo=TRUE}
+summary(df.raw)
+df.na <- df.raw %>% filter(is.na(steps))
+print(paste("NA's in data",dim(df.na)[1],sep=" "))
+
+df.new = data.frame(df.raw)
+for(i in 1:dim(df.new)[1]) {
+  if (is.na(df.new$steps[i])) {
+    df.new$steps[i] = 0 
+    }
+}
+
+df.new.perday <- df.new %>% group_by(date) %>% summarize(steps = sum(steps, na.rm=TRUE))
+
+p <- ggplot(df.new.perday, aes(date, steps))
+p + geom_bar(stat="identity")
+ggsave("figure/plot3.png")
+
+df.new.mean <- df.new %>% group_by(date) %>% summarize(steps.mean = mean(steps, na.rm=TRUE), steps.median=median(steps, na.rm=TRUE))
+df.new.mean
+  
+```
 
 
 
 ## Are there differences in activity patterns between weekdays and weekends?
+```{r echo=TRUE}
+l <- rep("weekday", times=dim(df.new)[1])
+for(i in 1:dim(df.new)[1]) {
+  dayofweek <- weekdays(df.new$date[i], abbreviate = TRUE)
+  if (dayofweek=="土" | dayofweek == "日") {
+    l[i] = "weekend" 
+    }
+}
+df.new$dayofweek <- as.factor(l)
+
+df.weekdays <- df.new %>% group_by(dayofweek,interval) %>% summarize(steps = sum(steps, na.rm=TRUE))
+
+ggplot(df.weekdays, aes(interval, steps)) + geom_line(aes(color=dayofweek)) + facet_wrap(~ dayofweek ,ncol=1)
+
+ggsave("figure/plot4.png")
+```
+
